@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bms.mapper.TestMapper">
+
+	<insert id="addTest" parameterType="Test">
+		INSERT INTO "BMS"."test" ("id", "name", "test_datetime") 
+		values (#{id}, #{name}, #{testDatetime, jdbcType = TIMESTAMP})
+	</insert>
+	
+	<update id="updateTest" parameterType="Test">
+		update "test" set name = #{name}, #{testDatetime} 
+		where ID = #{id}
+	</update>
+	
+	<delete id="deleteTest" parameterType="Test">
+		delete from "BMS"."test" where "id" = #{id}
+	</delete>
+	
+	<select id="findTest" parameterType="String" resultType="Test">
+		select * from "test" where "id" = #{id}
+	</select>
+	
+</mapper> 

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bms.mapper.SysMenuMapper">
+
+	<sql id="columns">
+		sm.MENU_ID menuID,
+		sm.PARENT_ID parentID,
+		sm.MENU_NAME menuName,
+		sm.LINK_SOURCE linkSource,
+		sm.CREATE_USER createUser,
+		sm.CREATE_DATE createDate,
+		sm.MODIFY_USER modifyUser,
+		sm.MODIFY_DATE modifyDate
+	</sql>
+
+	<select id="findMenuByRole" parameterType="SysRole" resultType="SysMenu">
+		select <include refid="columns"/>
+		from SYS_MENU sm, SYS_ROLE_MENU srm
+		where sm.MENU_ID = srm.MENU_ID and srm.ROLE_ID = #{roleID}
+	</select>
+	
+	<select id="getTotalMenu" resultType="Long">
+		select count(*)
+		from SYS_MENU sm
+	</select>
+	
+	<select id="listMenu" parameterType="Map" resultType="SysMenu">
+		select * from 
+		(select ROWNUM rn, <include refid="columns"/> from (select * from SYS_MENU) sm where ROWNUM &lt;= #{end})
+		where rn &gt;= #{start}
+	</select>
+	
+	<insert id="addMenu" parameterType="SysMenu">
+		insert into SYS_MENU (MENU_ID, PARENT_ID, MENU_NAME, LINK_SOURCE, CREATE_USER, CREATE_DATE, MODIFY_USER, MODIFY_DATE)
+		values (#{menuID}, #{parentID}, #{menuName}, #{linkSource}, #{createUser}, #{createDate, jdbcType = TIMESTAMP}, #{modifyUser}, #{modifyDate, jdbcType = TIMESTAMP})
+	</insert>
+	
+</mapper> 

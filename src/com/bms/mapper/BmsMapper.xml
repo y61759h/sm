@@ -1,0 +1,1733 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bms.mapper.BmsMapper">
+
+	<select id="getBranch" parameterType="Map" resultType="Map">
+		select br.br_cde brCode, br.br_cde||'-'||br_name brName from
+		branch_mas br, bi_user_br bub where bub.br_cde = br.br_cde and
+		bub.user_id = #{userID}
+		<if test="company != null">
+			and br.company_code = #{company}
+		</if>
+		<if test="region != null">
+			and br.region_cde = #{region}
+		</if>
+		<if test="chain != null">
+			and br.chain_cde = #{chain}
+		</if>
+	</select>
+	
+	<select id="getBranchOut" parameterType="Map" resultType="Map">
+		select br.br_cde brCode, br.br_cde||'-'||br_name brName from
+		branch_mas br
+	</select>
+
+	<select id="getCompany" parameterType="Map" resultType="String">
+		select distinct br_comp.company_code from
+		(select br.* from
+		branch_mas
+		br, bi_user_br bub where bub.br_cde = br.br_cde
+		and
+		bub.user_id =
+		#{userID}
+		<if test="region != null">
+			and br.region_cde = #{region}
+		</if>
+		<if test="brCode != null">
+			and br.brCode = #{brCode}
+		</if>
+		<if test="chain != null">
+			and br.chain_cde = #{chain}
+		</if>
+		) br_comp
+	</select>
+
+	<select id="getRegion" parameterType="Map" resultType="String">
+		select distinct br_reg.region_cde from
+		(select br.* from
+		branch_mas br,
+		bi_user_br bub where bub.br_cde = br.br_cde
+		and
+		bub.user_id = #{userID}
+		<if test="company != null">
+			and br.company_code = #{company}
+		</if>
+		<if test="brCode != null">
+			and br.brCode = #{brCode}
+		</if>
+		<if test="chain != null">
+			and br.chain_cde = #{chain}
+		</if>
+		) br_reg
+	</select>
+
+	<select id="getChain" parameterType="Map" resultType="String">
+		select distinct br_chain.chain_cde from
+		(select br.* from
+		branch_mas
+		br,
+		bi_user_br bub where bub.br_cde = br.br_cde
+		and
+		bub.user_id =
+		#{userID}
+		<if test="company != null">
+			and br.company_code = #{company}
+		</if>
+		<if test="brCode != null">
+			and br.brCode = #{brCode}
+		</if>
+		<if test="region != null">
+			and br.region_cde = #{region}
+		</if>
+		) br_chain
+	</select>
+
+	<select id="getItemType" resultType="String">
+		select
+		trim(item_cat_desc)
+		item_cat_desc from item_cat
+	</select>
+    
+    <select id="getItemName" parameterType="String" resultType="String">
+        select item_cde||'-'||item_desc itemname from item_mas where item_desc like #{pattern}
+    </select>
+    
+    <select id="getSupName" parameterType="String" resultType="String">
+        select vendor_cde||'-'||vendor_name supname from po_sup where vendor_name like #{pattern}
+    </select>
+
+	<select id="usingSourceReport" parameterType="Report" resultType="Map">
+		select x.name||ms.br_name,
+		x.item_cat_desc,x.item_cde,x.item_desc,x.item_acc_Cde,
+		x.item_packing ,
+		case when item_acc_cde in ('1211100000'
+		,'5501060000','15505000')
+		then
+		'公斤' else order_uom end unit,ljc_count,
+		gh_count,zh_cout,jc_count,
+		(ljc_count+gh_count+zh_cout-jc_count)
+		this_u_count,
+		ljc_amt,
+		gh_amt,zh_amt,jc_amt, (ljc_amt+
+		gh_amt+zh_amt-jc_amt) this_u_amt,
+		case
+		(ljc_count+gh_count+zh_cout-jc_count) when 0 then 0 else
+		(ljc_amt+
+		gh_amt+zh_amt-jc_amt)/(ljc_count+gh_count+zh_cout-jc_count)
+		end
+		price
+		from ( select s.br_Cde name, s.item_cat_desc
+		,s.item_cde,s.item_desc,s.item_acc_cde,s.item_packing, '' uom ,
+		nvl(c.qty1,0) ljc_count, nvl(d.qty2,0) gh_count
+		,nvl(e.qty5,0)-nvl(k.qty6,0) zh_cout,nvl(f.qty4,0) jc_count,
+		nvl(ljc_amt,0) ljc_amt,nvl(gh_amt,0)
+		gh_amt,nvl(zh_in_amt,0)-nvl(zh_out_amt,0) zh_amt, nvl(jc_amt,0)
+		jc_amt
+		from ( select item_cde,br_cde,item_Cat_Desc,item_acc_cde,
+		trim(item_desc) item_desc,replace(trim(packing),' ','无')
+		item_packing
+		from item_mas a left join branch_mas b on 1=1 where
+		1=1
+		<if test="company != null">
+			and br_cde in(select br_cde from branch_mas where
+			company_code = #{company})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="chainCode != null">
+			and chain_cde = #{chainCode}
+		</if>
+		) s left join (select name,item_cde,uom, sum(qty1)
+		qty1,sum(ljc_amt)
+		ljc_amt from (select a.br_cde name,item_cde,''
+		uom , case when
+		kg_qty=0
+		then qty else kg_qty end qty1 ,
+		nvl(amt,0) ljc_amt from
+		item_stk_dtl a
+		where stk_lst_date=(
+		select max(stk_lst_date) from
+		item_stk_dtl where
+		to_char(stk_lst_date,'yyyy-mm')=
+		#{lastMonStartDate})
+		<if test="company != null">
+			and br_cde in (select br_cde from branch_mas where
+			company_code = #{company})
+		</if>
+		<if test="region != null">
+			and br_cde in(select br_cde from branch_mas where
+			region_Cde = #{region})
+		</if>
+		<if test="itemType != null">
+			and item_cat = #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and br_cde in (select br_cde from branch_mas where
+			chain_cde = #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde = #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)c1 group by name,item_cde,uom) c on s.item_cde=c.item_cde
+		and
+		s.br_cde=c.name left join (select name,item_Cde,uom,sum(qty2)
+		qty2,sum(gh_amt) gh_amt
+		from(select a.br_cde name, a.item_cde,''
+		uom ,
+		case when po_qty=0 then
+		item_rpt_qty else po_qty end qty2 ,
+		case when
+		po_qty=0 then
+		nvl(a.item_price,0)* nvl(item_rpt_qty,0)
+		else
+		nvl(a.PO_price,0)*nvl(po_qty,0) end gh_amt from ap_invoice_d
+		a inner
+		join ap_invoice_h b on a.cdc_ref=b.cdc_ref and
+		a.br_Cde=b.br_cde inner
+		join item_mas c on a.item_Cde=c.item_cde
+		where b.receive_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and
+		b.receive_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and b.br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and b.br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="brCode != null">
+			and b.br_cde ${brCode}
+		</if>
+		<if test="subCode != null">
+			AND B.SUP_CDE = #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and a.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="itemType != null">
+			and c.item_cat_desc = #{itemType}
+		</if>
+		) d1 group by name,item_cde,uom ) d on s.item_cde=d.item_cde and
+		s.br_Cde=d.name left join (select name,item_cde,uom, sum(qty5)
+		qty5,sum(zh_in_amt) zh_in_amt from (select t2.br_cde_in name,
+		t1.item_cde,'' uom , case when t1.tran_kg_qty=0 then
+		nvl(t1.tran_qty,0) else nvl(t1.tran_kg_qty,0) end qty5,
+		nvl(t1.amt,0)
+		zh_in_amt from item_tran_dtl t1 inner join
+		item_tran_mas t2 on
+		t1.tran_no=t2.tran_no and
+		t1.tran_date=t2.tran_date where
+		t2.tran_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and t2.tran_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and t2.br_cde_in in(select br_cde from branch_mas
+			where
+			company_code=#{company})
+		</if>
+		<if test="region != null">
+			and t2.br_cde_in in(select br_cde from branch_mas
+			where
+			region_Cde=#{region})
+		</if>
+		<if test="itemType != null">
+			and item_cat=#{itemType}
+		</if>
+		<if test="chainCode != null">
+			and br_cde_in in (select br_cde from branch_mas
+			where
+			chain_cde = #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde_in ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde = #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		) e1 group by name,item_cde,uom ) e on s.item_cde=e.item_cde and
+		s.br_Cde=e.name left join (select name,item_cde,uom,sum(qty6)
+		qty6,sum(zh_out_amt) zh_out_amt from (select t2.br_Cde_out name
+		,t1.item_cde,'' uom , case when t1.tran_kg_qty=0 then
+		nvl(t1.tran_qty,0) else nvl(t1.tran_kg_qty,0) end
+		qty6,nvl(t1.amt,0)
+		zh_out_amt from item_tran_dtl t1 inner join
+		item_tran_mas t2 on
+		t1.tran_no=t2.tran_no and
+		t1.tran_date=t2.tran_date where
+		t2.tran_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and t2.tran_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and t2.br_cde_out in(select br_cde from branch_mas
+			where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and t2.br_cde_out in(select br_cde from branch_mas
+			where
+			region_Cde= #{region})
+		</if>
+		<if test="chainCode != null">
+			and br_cde_out in (select br_cde from branch_mas
+			where
+			chain_cde = #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde_out ${brCode}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)k1 group by name,item_cde,uom) k on s.item_cde=k.item_cde and
+		s.br_cde=k.name
+		left join (select name,item_Cde,uom,sum(qty4)
+		qty4,sum(jc_amt) jc_amt from
+		(select a.br_cde name,item_cde,''
+		uom ,
+		case when kg_qty=0 then qty
+		else kg_qty end qty4 ,nvl(amt,0)
+		jc_amt
+		from
+		item_stk_dtl a where
+		stk_lst_date= ( select
+		max(stk_lst_date) from
+		item_stk_dtl where
+		to_char(stk_lst_date,'yyyy-mm')= #{lastMonEndDate})
+		<if test="region != null">
+			and br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="company != null">
+			and br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and br_cde in (select br_cde from branch_mas where
+			chain_cde = #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)f1 group by name,item_cde,uom) f on s.item_cde=f.item_cde and
+		f.name=s.br_cde) x left join (select item_cde, order_uom from
+		order_unit where created_date between
+		to_date(#{startDate},'yyyy-mm-dd') and
+		to_date(#{endDate},'yyyy-mm-dd')) w on x.item_Cde=w.item_cde
+		left
+		join
+		branch_mas ms on x.name=ms.br_cde where zh_cout!=0 or
+		jc_count!=0
+		or
+		ljc_count!=0 or gh_count!=0 or ljc_count!=0
+	</select>
+
+	<select id="usingSummaryReport" parameterType="Report"
+		resultType="Map">
+		select x.item_cat_desc,ljc_count, gh_count ,zh_cout,jc_count,
+		(ljc_count+gh_count+zh_cout-jc_count) this_u_count, ljc_amt,
+		gh_amt,zh_amt,jc_amt, (ljc_amt+ gh_amt+zh_amt-jc_amt) this_u_amt,
+		case
+		(ljc_count+gh_count+zh_cout-jc_count) when 0 then 0 else
+		(ljc_amt+
+		gh_amt+zh_amt-jc_amt)/(ljc_count+gh_count+zh_cout-jc_count) end
+		price
+		from ( select s.item_cat_Desc,nvl(c.qty1,0) ljc_count,
+		nvl(d.qty2,0)
+		gh_count ,nvl(e.qty5,0)-nvl(k.qty6,0)
+		zh_cout,nvl(f.qty4,0)
+		jc_count,
+		nvl(ljc_amt,0)
+		ljc_amt,nvl(gh_amt,0)
+		gh_amt,nvl(zh_in_amt,0)-nvl(zh_out_amt,0)
+		zh_amt, nvl(jc_amt,0) jc_amt
+		from (select distinct
+		trim(item_cat_Desc) item_cat_Desc from item_mas)
+		s left join (
+		select item_cat,sum(qty1) qty1,sum(ljc_amt) ljc_amt
+		from(select
+		trim(nvl(item_cat,'其他')) item_cat, case when
+		kg_qty=0 then
+		qty
+		else kg_qty end qty1 ,nvl(amt,0) ljc_amt from item_stk_dtl where
+		stk_lst_date= ( select max(stk_lst_date) from item_stk_dtl where
+		to_char(stk_lst_date,'yyyy-mm')= #{lastMonStartDate})
+		<if test="company != null">
+			and br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="chainCode != null">
+			and br_cde in (select br_cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		) c1 group by item_cat) c on
+		(trim(s.item_cat_desc)=trim(c.item_cat))
+		left join (select
+		item_cat,sum(qty2) qty2,sum(gh_amt) gh_amt from
+		(select
+		trim(c.item_cat_desc) item_cat , case when po_qty=0 then
+		item_rpt_qty else po_qty end qty2 , case when item_acc_cde in
+		('1211100000' ,'5501060000','15505000') then
+		nvl(a.PO_price*po_qty,0)
+		else
+		nvl(a.item_price,0)*nvl(item_rpt_qty,0) end gh_amt from
+		ap_invoice_d a inner join ap_invoice_h b on a.cdc_ref=b.cdc_ref
+		and
+		a.br_Cde=b.br_cde inner join item_mas c on
+		a.item_Cde=c.item_cde
+		where
+		b.receive_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and
+		b.receive_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and a.br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and a.br_cde ${brCode}
+		</if>
+		<if test="subCode != null">
+			AND B.SUP_CDE= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and c.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="itemType != null">
+			and c.item_cat_desc= #{itemType}
+		</if>
+		) d1 group by item_cat ) d on
+		(trim(s.item_cat_desc)=trim(d.item_cat))
+		left join (select
+		item_cat,sum(qty5) qty5,sum(zh_in_amt) zh_in_amt
+		from
+		(select
+		trim(nvl(t1.item_cat,'其他')) item_cat, case when
+		t1.tran_kg_qty=0
+		then t1.tran_qty else nvl(t1.tran_kg_qty,0) end
+		qty5,
+		nvl(t1.amt,0) zh_in_amt from item_tran_dtl t1 inner join
+		item_tran_mas
+		t2 on t1.tran_no=t2.tran_no and
+		t1.tran_date=t2.tran_date where
+		t2.tran_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and
+		t2.tran_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and t2.br_cde_in in(select br_cde from branch_mas
+			where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and t2.br_cde_in in(select br_cde from branch_mas
+			where
+			region_Cde= #{region})
+		</if>
+		<if test="chainCode != null">
+			and br_cde_in in (select br_cde from branch_mas
+			where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde_in ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and t1.item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and t1.item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		)e1 group by item_cat) e on
+		trim(s.item_cat_desc)=trim(e.item_cat)
+		left
+		join (select
+		item_cat, sum(qty6) qty6,sum(zh_out_amt) zh_out_amt
+		from
+		(select
+		trim(nvl(t1.item_cat,'其他')) item_cat,case when
+		t1.tran_kg_qty=0
+		then nvl(t1.tran_qty,0) else
+		nvl(t1.tran_kg_qty,0)
+		end qty6,
+		nvl(t1.amt,0) zh_out_amt from item_tran_dtl t1 inner join
+		item_tran_mas t2 on t1.tran_no=t2.tran_no and
+		t1.tran_date=t2.tran_date where t2.tran_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and t2.tran_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and t2.br_cde_out in(select br_cde from branch_mas
+			where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and t2.br_cde_out in(select br_cde from branch_mas
+			where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="chainCode != null">
+			and br_Cde_out in (select br_cde from branch_mas
+			where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde_out ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and t1.item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and t1.item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		)k1 group by item_cat) k on
+		trim(s.item_cat_desc)=trim(k.item_cat)
+		left
+		join (select
+		item_cat,sum(qty4) qty4 ,sum(jc_amt)jc_amt from
+		(select
+		trim(nvl(item_cat,'其他')) item_cat, case when kg_qty=0 then qty
+		else
+		kg_qty end qty4 , nvl(amt,0) jc_amt from item_stk_dtl where
+		stk_lst_date= ( select max(stk_lst_date) from item_stk_dtl where
+		to_char(stk_lst_date,'yyyy-mm')= #{lastMonEndDate})
+		<if test="company != null">
+			and br_cde in(select br_cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and br_cde in (select br_cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)f1 group by item_cat) f on
+		(trim(s.item_cat_desc)=trim(f.item_cat) ))
+		x
+	</select>
+
+	<select id="usingDetailReport" parameterType="Report" resultType="Map">
+		select x.item_cat_desc ,
+		x.item_cde,x.item_desc,x.item_acc_cde,x.item_packing, case when
+		item_acc_cde in ('1211100000' ,'5501060000','15505000') then
+		'公斤' else
+		order_uom end unit,ljc_count, gh_count ,zh_cout,jc_count,
+		(ljc_count+gh_count+zh_cout-jc_count) this_u_count, ljc_amt,
+		gh_amt,zh_amt,jc_amt, (ljc_amt+ gh_amt+zh_amt-jc_amt)
+		this_u_amt, case
+		(ljc_count+gh_count+zh_cout-jc_count) when 0
+		then 0 else (ljc_amt+
+		gh_amt+zh_amt-jc_amt)/(ljc_count+gh_count+zh_cout-jc_count) end
+		price
+		from (select s.item_cat_desc ,trim(s.item_desc) item_desc
+		,item_acc_cde,replace(trim(packing),' ','无') item_packing, case
+		nvl(c.uom,'yes') when 'yes' then case nvl(d.uom,'yes') when
+		'yes' then
+		case nvl(e.uom,'yes') when 'yes' then case
+		nvl(f.uom,'yes') when 'yes'
+		then k.uom else f.uom end else e.uom
+		end else d.uom end else c.uom end
+		uom ,
+		s.item_cde,round(nvl(c.qty1,0),2) ljc_count,
+		round(nvl(d.qty2,0),2) gh_count
+		,round(nvl(e.qty5,0)-nvl(k.qty6,0),2)
+		zh_cout,round(nvl(f.qty4,0),2) jc_count, round(nvl(ljc_amt,0),2)
+		ljc_amt,round(nvl(gh_amt,0),2) gh_amt,
+		round(nvl(zh_in_amt,0)-nvl(zh_out_amt,0),2) zh_amt,
+		round(nvl(jc_amt,0),2) jc_amt from item_mas s left join (select
+		item_cde,uom,sum(qty1) qty1,sum(ljc_amt) ljc_amt from(select
+		item_cde,
+		'' uom , case when kg_qty=0 then qty else kg_qty end
+		qty1 ,nvl(amt,0)
+		ljc_amt from item_stk_dtl where stk_lst_date= (
+		select
+		max(stk_lst_date) from item_stk_dtl where
+		to_char(stk_lst_date,'yyyy-mm')= #{lastMonStartDate})
+		<if test="company != null">
+			and br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and br_cde in (select br_cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		)c1 group by item_cde,uom) c on s.item_cde=c.item_cde left join
+		(select item_cde,uom,sum(qty2) qty2,sum(gh_amt) gh_amt
+		from(select
+		a.item_cde, '' uom , case po_qty when 0 then
+		item_rpt_qty else po_qty
+		end qty2 , case when po_qty=0 then
+		nvl(a.item_price,0)*nvl(item_rpt_qty,0) else
+		nvl(a.PO_price,0)*nvl(po_qty,0) end gh_amt from ap_invoice_d a
+		inner
+		join ap_invoice_h b on a.cdc_ref=b.cdc_ref and
+		a.br_cde=b.br_Cde inner
+		join item_mas c on a.item_cde=c.item_cde
+		where b.receive_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and
+		b.receive_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and a.br_cde in(select br_cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in(select br_cde from branch_mas where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="brCode != null">
+			and a.br_cde ${brCode}
+		</if>
+		<if test="subCode != null">
+			AND B.SUP_CDE= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and a.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="itemType != null">
+			and c.item_cat_desc= #{itemType}
+		</if>
+		) d1 group by item_cde,uom) d on (s.item_cde=d.item_cde) left
+		join
+		(select item_Cde,uom,sum(qty5) qty5,sum(zh_in_amt)
+		zh_in_amt from
+		(select t1.item_cde, '' uom , case when
+		t1.tran_kg_qty=0 then
+		nvl(t1.tran_qty,0) else
+		nvl(t1.tran_kg_qty,0) end qty5, nvl(t1.amt,0)
+		zh_in_amt from
+		item_tran_dtl t1 inner join item_tran_mas t2 on
+		t1.tran_no=t2.tran_no and t1.tran_date=t2.tran_date where
+		t2.tran_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and
+		t2.tran_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and t2.br_cde_in in(select br_cde from branch_mas
+			where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and t2.br_cde_in in(select br_cde from branch_mas
+			where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="chainCode != null">
+			and br_cde_in in (select br_cde from branch_mas
+			where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde_in ${brCode}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)e1 group by item_cde,uom ) e on (s.item_cde=e.item_cde) left
+		join
+		(select item_cde,uom,sum(qty6) qty6,sum(zh_out_amt)
+		zh_out_amt from
+		(select t1.item_cde, '' uom , case when
+		t1.tran_kg_qty=0 then
+		nvl(t1.tran_qty,0) else
+		nvl(t1.tran_kg_qty,0) end qty6, nvl(t1.amt,0)
+		zh_out_amt from
+		item_tran_dtl t1 inner join item_tran_mas t2 on
+		t1.tran_no=t2.tran_no and t1.tran_date=t2.tran_date where
+		t2.tran_date
+		&gt;=to_date(#{startDate},'yyyy-mm-dd') and
+		t2.tran_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="company != null">
+			and t2.br_cde_out in(select br_cde from branch_mas
+			where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and t2.br_cde_out in(select br_cde from branch_mas
+			where
+			region_Cde= #{region})
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="brCode != null">
+			and br_cde_out ${brCode}
+		</if>
+		<if test="chainCode != null">
+			and br_cde_out in (select br_cde from branch_mas
+			where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)k1 group by item_cde,uom) k on (s.item_cde=k.item_cde) left
+		join
+		(select item_cde,uom,sum(qty4) qty4,sum(jc_amt) jc_amt from
+		(select
+		item_cde, '' uom , case when kg_qty=0 then qty else
+		kg_qty end qty4
+		,nvl(amt,0) jc_amt from item_stk_dtl where
+		stk_lst_date= ( select
+		max(stk_lst_date) from item_stk_dtl where
+		to_char(stk_lst_date,'yyyy-mm')=#{lastMonEndDate})
+		<if test="company != null">
+			and br_cde in(select br_cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and br_cde in(select br_cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="chainCode != null">
+			and br_cde in (select br_cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="brCode != null">
+			and br_cde ${brCode}
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="itemCodeStart != null">
+			and item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		)f1 group by item_cde,uom) f on (s.item_cde=f.item_cde) order by
+		s.item_cat_Desc,item_Cde) x left join (select item_cde,
+		order_uom from
+		order_unit where created_date between
+		to_date(#{startDate},'yyyy-mm-dd') and
+		to_date(#{endDate},'yyyy-mm-dd')) w on x.item_Cde=w.item_cde
+		where
+		ljc_count!=0 or gh_count!=0 or zh_cout!=0 or jc_count!=0
+		or ljc_amt!=0
+		or gh_amt!=0 or zh_amt!=0 or jc_amt!=0
+	</select>
+
+	<!-- 供应商来货汇总数据 -->
+	<select id="subInvoiceSummary" parameterType="Report" resultType="Map">
+		select 1 seq,sup_cde,sup_name,invdate,sum(inv_amt) from ( select
+		sup_Cde,sup_name, case when inv_date is null then dn_no else
+		to_char(inv_date,'yyyy-mm-dd') end invdate , case when po_qty=0
+		then
+		round(item_price*item_rpt_qty, 2) else round(po_qty*po_price, 2) end inv_amt
+		from
+		ap_invoice_h a inner join ap_invoice_d b on
+		a.cdc_ref=b.cdc_ref and
+		a.br_cde=b.br_Cde inner join item_mas c
+		on b.item_cde=c.item_cde where
+		receive_date &gt;=
+		to_date(#{startDate},'yyyy-mm-dd') and
+		receive_date
+		&lt;=
+		to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and sup_cde= #{subCode}
+		</if>
+		<if test="itemType != null">
+			and item_cat_desc= #{itemType}
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="company != null">
+			and a.br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="brCode != null">
+			and a.br_Cde ${brCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and b.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in('1211100000'
+			,'5501060000','15505000')
+		</if>
+		) group by sup_cde,invdate,sup_name 
+        union all select 2
+		seq,sup_cde,sup_cde||'——汇总' sup_name,'-' invdate,sum(inv_amt) from
+		(
+		select sup_Cde, case when po_qty=0 then
+		round(item_price*item_rpt_qty, 2) else
+		round(po_qty*po_price, 2) end inv_amt from
+		ap_invoice_h a inner join ap_invoice_d
+		b on a.cdc_ref=b.cdc_ref
+		and a.br_cde=b.br_Cde inner join item_mas c on
+		b.item_cde=c.item_cde where
+		receive_date &gt;=
+		to_date(#{startDate},'yyyy-mm-dd') and
+		receive_date &lt;=
+		to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and sup_cde= #{subCode}
+		</if>
+		<if test="itemType != null">
+			and item_cat_desc= #{itemType}
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="company != null">
+			and a.br_cde in(select br_cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="brCode != null">
+			and a.br_Cde ${brCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and b.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in('1211100000'
+			,'5501060000','15505000')
+		</if>
+		) group by sup_cde order by sup_cde, seq
+	</select>
+
+	<!-- 来货明细表数据 -->
+	<select id="invoiceDetail" parameterType="Report" resultType="Map">
+		select seq,x.name,x.receive_date,x.item_cde,replace(x.item_desc,' ','') replace_item_desc
+		,x.item_acc_cde, replace(x.packing,' ','') replace_packing,x.uom_cde
+		,sum(qty) f_qty,sum(amt) f_amt, case sup_amt when 0 then 0 else
+		round(sum(amt)*1000/ sup_amt,4) end prc1, case all_amt when 0
+		then 0
+		else round(sum(amt)*1000/ all_amt,4) end prc2 , case
+		all_amt when 0
+		then 0 else round(sup_amt*1000/all_amt,4) end
+		prc3 from (select 1
+		seq,a.sup_cde||'-'||r.vendor_name name,
+		trim(k.packing) packing ,
+		to_char(receive_date,'yyyy-mm-dd')
+		receive_date, uom_Cde ,
+		b.item_cde,k.item_desc,k.item_acc_cde
+		,case when po_qty=0 then
+		nvl(item_rpt_qty,0) else nvl(po_qty,0)
+		end qty, case when po_qty=0 then
+		nvl(round(item_price*item_rpt_qty, 2),0)
+		else nvl(round(PO_price*po_qty, 2),0) end
+		amt,sup_amt,all_amt from
+		ap_invoice_h a inner join ap_invoice_d b on
+		a.cdc_ref=b.cdc_ref
+		and a.br_Cde=b.br_Cde inner join item_mas k on
+		k.item_Cde=b.item_Cde inner join po_sup r on
+		vendor_cde=a.sup_cde inner
+		join (select
+		x2.sup_cde,sum(round(item_rpt_qty*item_price, 2)) sup_amt from
+		ap_invoice_d x1 inner join ap_invoice_h x2 on
+		x1.cdc_ref=x2.cdc_ref and
+		x1.br_Cde=x2.br_cde inner join
+		item_mas k on x1.item_cde=k.item_Cde
+		where
+		receive_date &gt;=
+		to_date(#{startDate},'yyyy-mm-dd') and
+		receive_date &lt;=
+		to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and x2.sup_Cde= #{subCode}
+		</if>
+		group by x2.sup_cde) c on a.sup_cde=c.sup_cde inner join (select
+		sum(round(item_rpt_qty*item_price, 2)) all_amt from ap_invoice_d x1 inner
+		join
+		ap_invoice_h x2 on x1.cdc_ref=x2.cdc_ref and
+		x1.br_Cde=x2.br_cde where
+		receive_date &gt;=
+		to_date(#{startDate},
+		'yyyy-mm-dd') and receive_date
+		&lt;=
+		to_date(#{endDate},
+		'yyyy-mm-dd')) d on 1=1 where receive_date
+		&gt;= to_date(#{startDate}
+		,'yyyy-mm-dd') and receive_date &lt;=
+		to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="invNo != null">
+			and x2.inv_no= #{invNo}
+		</if>
+		<if test="company != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="brCode != null">
+			and a.br_cde ${brCode}
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="itemType != null">
+			and k.item_cat_Desc= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="itemCodeStart != null">
+			and b.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		union all select 2 seq,a.sup_cde||'-'||r.vendor_name name, ''
+		packing ,
+		to_char(receive_date,'yyyy-mm-dd')|| '小计'
+		receive_date, '' uom_Cde , ''
+		item_cde,'' item_desc ,''
+		item_acc_cde ,case when po_qty=0 then
+		nvl(item_rpt_qty,0) else
+		nvl(po_qty,0) end qty, case when po_qty=0 then
+		nvl(round(item_price*item_rpt_qty, 2),0) else nvl(round(PO_price*po_qty, 2),0) end
+		amt,sup_amt,all_amt from ap_invoice_h a inner join ap_invoice_d
+		b on
+		a.cdc_ref=b.cdc_ref and a.br_Cde=b.br_Cde inner join
+		item_mas k on
+		k.item_Cde=b.item_Cde inner join po_sup r on
+		vendor_cde=a.sup_cde inner
+		join (select
+		x2.sup_cde,sum(round(item_rpt_qty*item_price, 2)) sup_amt from
+		ap_invoice_d x1 inner join ap_invoice_h x2 on
+		x1.cdc_ref=x2.cdc_ref and
+		x1.br_Cde=x2.br_cde inner join
+		item_mas k on x1.item_cde=k.item_Cde
+		where
+		receive_date &gt;=
+		to_date(#{startDate},'yyyy-mm-dd') and
+		receive_date &lt;=
+		to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and x2.sup_Cde= #{subCode}
+		</if>
+		group by x2.sup_cde) c on a.sup_cde=c.sup_cde inner join (select
+		sum(round(item_rpt_qty*item_price, 2)) all_amt from ap_invoice_d x1 inner
+		join
+		ap_invoice_h x2 on x1.cdc_ref=x2.cdc_ref and
+		x1.br_Cde=x2.br_cde where
+		receive_date &gt;=
+		to_date(#{startDate},
+		'yyyy-mm-dd') and receive_date
+		&lt;=
+		to_date(#{endDate},
+		'yyyy-mm-dd')) d on 1=1 where receive_date
+		&gt;= to_date(#{startDate}
+		,'yyyy-mm-dd') and receive_date &lt;=
+		to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="invNo != null">
+			and x2.inv_no= #{invNo}
+		</if>
+		<if test="company != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			company_code= #{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			region_Cde= #{region})
+		</if>
+		<if test="brCode != null">
+			and a.br_cde ${brCode}
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			chain_cde= #{chainCode})
+		</if>
+		<if test="itemType != null">
+			and k.item_cat_Desc= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="itemCodeStart != null">
+			and b.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		)x group by
+		x.seq,x.name,x.receive_date,x.item_cde,replace(x.item_desc,' ','') ,
+		replace(x.packing,' ',''), x.uom_cde,x.item_acc_cde, sup_amt,all_amt 
+		order by name, receive_date, seq
+	</select>
+
+	<!-- 获得来货品种明细数据 -->
+	<select id="invoiceItemDetail" parameterType="Report" resultType="Map">
+		select
+		item_cde,item_desc,item_acc_cde,packing,uom_cde,item_price,
+		sum(rpt_qty),sum(kg_qty),sum(amt) from ( select
+		b.item_cde,replace(b.item_desc,' ','')item_desc,
+		replace(c.packing,' ','')
+         packing , case when c.item_acc_cde in
+		('1211100000'
+		,'5501060000','15505000') then '公斤' else uom_cde
+		end uom_cde,
+		item_acc_cde, case po_price when 0 then item_price
+		else po_price end
+		item_price, item_rpt_qty rpt_qty,po_qty
+		kg_qty, case po_qty when 0 then
+		round(item_price*item_rpt_qty, 2) else
+		round(po_price*po_qty, 2) end amt from ap_invoice_d
+		b inner join
+		ap_invoice_h a on a.cdc_ref=b.cdc_ref and
+		a.br_Cde=b.br_Cde
+		inner join item_mas c on b.item_cde=c.item_Cde where
+		receive_date &gt;= to_date(#{startDate},'yyyy-mm-dd') and
+		receive_date
+		&lt;= to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and a.sup_cde= #{subCode}
+		</if>
+		<if test="company != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="invNo != null">
+			and a.inv_no= #{invNo}
+		</if>
+		<if test="itemType != null">
+			and c.item_Cat_desc= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="brCode != null">
+			and a.br_Cde ${brCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and b.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		) x group by item_cde, item_desc, item_acc_cde, packing,
+		uom_cde,
+		item_price order by item_cde
+	</select>
+
+	<!-- DATA 数据 -->
+	<select id="invoiceData" parameterType="Report" resultType="Map">
+		select sup_cde,sup_name,receive_date, name , item_cat_desc,
+		item_cde,
+		item_desc,item_acc_cde,packing,uom_cde,sum(rpt_qty),sum(kg_qty),sum(amt)
+		from (select
+		a.sup_cde,sup_name,to_char(receive_date,'yyyy-mm-dd')
+		receive_date, a.br_cde||'-'||d.br_name name,
+		c.item_cat_desc,item_acc_cde, c.item_cde,replace(c.item_desc,' ','')
+		item_desc,replace(c.packing,' ','') packing,
+		b.item_rpt_qty
+		rpt_qty,b.po_qty kg_qty, b.uom_cde,case po_qty
+		when 0 then
+		round(item_price*item_rpt_qty, 2) else round(po_price*po_qty, 2) end amt
+		from ap_invoice_h
+		a inner join ap_invoice_d b on
+		a.cdc_Ref=b.cdc_ref and
+		b.br_cde=a.br_cde left join item_mas c
+		on b.item_Cde=c.item_cde left
+		join branch_mas d on a.br_Cde
+		=d.br_cde where receive_date
+		&gt;=
+		to_date(#{startDate},'yyyy-mm-dd') and receive_date
+		&lt;=to_date(#{endDate},'yyyy-mm-dd')
+		<if test="subCode != null">
+			and a.sup_cde= #{subCode}
+		</if>
+		<if test="company != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="region != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="chainCode != null">
+			and a.br_cde in (select br_Cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="invNo != null">
+			and a.inv_no= #{invNo}
+		</if>
+		<if test="itemType != null">
+			and c.item_Cat_desc= #{itemType}
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and item_acc_cde not in ('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and item_acc_cde in('1211100000'
+			,'5501060000','15505000')
+		</if>
+		<if test="brCode != null">
+			and a.br_Cde ${brCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and b.item_cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+		) x group by sup_cde, sup_name, receive_date, name,
+		item_cat_desc,
+		item_cde, item_desc, item_acc_cde,
+		packing,uom_cde order by sup_cde,
+		sup_name, item_cat_desc
+	</select>
+
+	<sql id="queryIn">
+		<if test="company != null">
+			and br_cde_out in(select br_cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="isPRS == null and brCodeOut != null">
+			and br_cde_out = #{brCodeOut}
+		</if>
+		<if test="isPRS == null and brCodeIn != null">
+			and br_cde_in = #{brCodeIn}
+		</if>
+		<if test="isPRS != null and brTran != null">
+			and br_cde_in ${brTran}
+		</if>
+		<if test="isPRS != null and brCodeIn != null">
+			and br_cde_out = #{brCodeIn}
+		</if>
+		<if test="chainCode != null">
+			and br_cde_out in (select br_cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="region != null">
+			and br_cde_out in (select br_cde from branch_mas where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and a.item_acc_cde not in
+			('1211100000','5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and a.item_acc_cde in
+			('1211100000','5501060000','15505000')
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and a.item_Cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+	</sql>
+
+	<sql id="queryOut">
+		<if test="company != null">
+			and br_cde_out in(select br_cde from branch_mas where
+			company_code=
+			#{company})
+		</if>
+		<if test="isPRS == null and brCodeOut != null">
+			and br_cde_out = #{brCodeOut}
+		</if>
+		<if test="isPRS == null and brCodeIn != null">
+			and br_cde_in = #{brCodeIn}
+		</if>		
+		<if test="isPRS != null and brTran != null">
+			and br_cde_out ${brTran}
+		</if>
+		<if test="isPRS != null and brCodeOut != null">
+			and br_cde_in = #{brCodeOut}
+		</if>
+		<if test="chainCode != null">
+			and br_cde_in in (select br_cde from branch_mas where
+			chain_cde=
+			#{chainCode})
+		</if>
+		<if test="region != null">
+			and br_cde_in in (select br_cde from branch_mas where
+			region_Cde=
+			#{region})
+		</if>
+		<if test="foodType != null and foodType == 'nonfood'">
+			and a.item_acc_cde not in
+			('1211100000','5501060000','15505000')
+		</if>
+		<if test="foodType != null and foodType != 'nonfood'">
+			and a.item_acc_cde in
+			('1211100000','5501060000','15505000')
+		</if>
+		<if test="itemType != null">
+			and item_cat= #{itemType}
+		</if>
+		<if test="subCode != null">
+			and sup_Cde= #{subCode}
+		</if>
+		<if test="itemCodeStart != null">
+			and a.item_Cde between #{itemCodeStart} and
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd == null">
+			#{itemCodeStart}
+		</if>
+		<if test="itemCodeStart != null and itemCodeEnd != null">
+			#{itemCodeEnd}
+		</if>
+	</sql>
+
+	<!-- 获得数据 转货汇总 转入 -->
+	<select id="tranInSummary" parameterType="Report" resultType="Map">
+		select 3 seq, br_cde_out, br_cde_in,sum(amt) amts from (select
+		b.br_cde_out||x2.br_name br_cde_out,b.br_cde_in||x1.br_name
+		br_cde_in,amt from item_tran_dtl a inner join item_tran_mas b on
+		a.tran_no=b.tran_no and a.tran_date=b.tran_date left join branch_mas
+		x1 on b.br_cde_in=x1.br_cde left join branch_mas x2 on
+		b.br_cde_out=x2.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryIn" />
+		) x group by br_cde_out,br_cde_in union all select 4 seq, '总计：'
+		br_cde_out,'',sum(amt) amts from (select amt from item_tran_dtl a
+		inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate},'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate},'yyyy-mm-dd')
+		<include refid="queryIn" />
+		) x order by br_cde_out, seq
+	</select>
+
+	<!-- 获得数据 转货汇总 转出 -->
+	<select id="tranOutSummary" parameterType="Report" resultType="Map">
+		select 3 seq, br_cde_in,br_cde_out,sum(amt) amts from (select
+		b.br_cde_in||x1.br_name br_cde_in,b.br_cde_out||x2.br_name
+		br_cde_out,amt from item_tran_dtl a inner join item_tran_mas b on
+		a.tran_no=b.tran_no and a.tran_date=b.tran_date left join branch_mas
+		x1 on b.br_cde_in=x1.br_cde left join branch_mas x2 on
+		b.br_cde_out=x2.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryOut" />
+		) x group by br_cde_in ,br_cde_out union all select 4 seq, '总计：'
+		br_cde_in,'',sum(amt) amts from (select amt from item_tran_dtl a inner
+		join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryOut" />
+		) x order by br_cde_in, seq
+	</select>
+
+	<!-- 获得数据 转货明细 转出 -->
+	<select id="tranOutDetail" parameterType="Report" resultType="Map">
+		select 1 seq,
+		br_cde_in,br_cde_out,x.tran_no,x.item_Cde,item_desc,item_acc_cde,
+		sum(qty) qtys, x.uom,price,sum(amt) amts from (select
+		b.br_cde_in||x1.br_name br_cde_in,b.br_cde_out||x2.br_name br_cde_out,
+		a.tran_no,a.item_Cde,a.item_desc,c.item_acc_Cde, case when
+		a.item_acc_cde in('1211100000','5501060000','15505000') then
+		nvl(tran_kg_qty,0) else tran_qty end qty, case when a.item_acc_cde
+		in('1211100000','5501060000','15505000') then '公斤' else uom_cde end
+		uom, case when a.item_acc_cde in('1211100000','5501060000','15505000')
+		then unit_price else tran_kg_price end price,amt from item_tran_dtl a
+		inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date left join branch_mas x1 on
+		b.br_cde_in=x1.br_cde left join branch_mas x2 on
+		b.br_cde_out=x2.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;=to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryOut" />
+		) x group by
+		br_cde_in,br_cde_out,x.tran_no,x.item_Cde,item_desc,item_acc_cde,uom,price,item_acc_cde
+		union all select 2 seq,
+		br_cde_in,br_cde_out,x.tran_no,'',null,null,null,null,null,sum(amt)
+		amts from (select b.br_cde_in||x1.br_name
+		br_cde_in,b.br_cde_out||x2.br_name br_cde_out,a.tran_no,amt from
+		item_tran_dtl a inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date left join branch_mas x1 on
+		b.br_cde_in=x1.br_cde left join branch_mas x2 on
+		b.br_cde_out=x2.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryOut" />
+		) x group by br_cde_in,br_cde_out,x.tran_no union all select 3 seq,
+		br_cde_in,'',tran_no||'小计：'
+		tran_no,'',null,null,null,null,null,sum(amt) amts from (select
+		b.br_cde_in||x1.br_name br_cde_in,a.tran_no,amt from item_tran_dtl a
+		inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date left join branch_mas x1 on
+		b.br_cde_in=x1.br_cde left join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryOut" />
+		) x group by br_cde_in,tran_no union all select 4 seq,'总计:' br_cde_in
+		,'' ,'' tran_no,'',null,null,null,null,null,sum(amt) amts from (select
+		amt from item_tran_dtl a inner join item_tran_mas b on
+		a.tran_no=b.tran_no and a.tran_date=b.tran_date inner join item_mas c
+		on a.item_cde=c.item_cde where a.tran_Date &gt;= to_date(#{startDate},
+		'yyyy-mm-dd') and a.tran_Date &lt;= to_date(#{endDate},'yyyy-mm-dd')
+		<include refid="queryOut" />
+		) x order by tran_no,seq
+	</select>
+
+	<!-- 获得数据 转货明细 转入 -->
+	<select id="tranInDetail" parameterType="Report" resultType="Map">
+		select 1 seq,
+		br_cde_out,br_cde_in,x.tran_no,x.item_Cde,item_desc,item_acc_Cde,
+		sum(qty) qtys, x.uom, price,sum(amt) amts from (select
+		b.br_cde_out||x2.br_name br_cde_out,b.br_cde_in||x1.br_name
+		br_cde_in,a.tran_no, a.item_Cde,a.item_desc,c.item_acc_Cde, case when
+		a.item_acc_cde in('1211100000','5501060000','15505000') then
+		nvl(tran_kg_qty,0) else tran_qty end qty, case when a.item_acc_cde
+		in('1211100000','5501060000','15505000') then '公斤' else uom_cde end
+		uom, case when a.item_acc_cde in('1211100000','5501060000','15505000')
+		then unit_price else tran_kg_price end price,amt from item_tran_dtl a
+		inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date left join branch_mas x1 on
+		b.br_cde_in=x1.br_cde left join branch_mas x2 on
+		b.br_cde_out=x2.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryIn" />
+		) x group by
+		br_cde_out,br_cde_in,x.tran_no,x.item_Cde,item_desc,uom,price,item_acc_Cde
+		union all select 2 seq,
+		br_cde_out,br_cde_in,x.tran_no,'',null,null,null,null,null,sum(amt)
+		amts from (select b.br_cde_out||x2.br_name
+		br_cde_out,b.br_cde_in||x1.br_name br_cde_in,a.tran_no,amt from
+		item_tran_dtl a inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date left join branch_mas x1 on
+		b.br_cde_in=x1.br_cde left join branch_mas x2 on
+		b.br_cde_out=x2.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate},'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate},'yyyy-mm-dd')
+		<include refid="queryIn" />
+		) x group by br_cde_out,br_cde_in,x.tran_no union all select 3 seq,
+		br_cde_out,'' br_cde_in,tran_no||'小计：'
+		tran_no,'',null,null,null,null,null,sum(amt) amts from (select
+		b.br_cde_out||x1.br_name br_cde_out,'',a.tran_no,amt from
+		item_tran_dtl a inner join item_tran_mas b on a.tran_no=b.tran_no and
+		a.tran_date=b.tran_date left join branch_mas x1 on
+		b.br_cde_in=x1.br_cde inner join item_mas c on a.item_cde=c.item_cde
+		where a.tran_Date &gt;= to_date(#{startDate}, 'yyyy-mm-dd') and
+		a.tran_Date &lt;= to_date(#{endDate}, 'yyyy-mm-dd')
+		<include refid="queryIn" />
+		) x group by br_cde_out,tran_no union all select 4 seq,'总计:'
+		br_cde_out ,'' br_cde_in,''
+		tran_no,'',null,null,null,null,null,sum(amt) amts from (select amt
+		from item_tran_dtl a inner join item_tran_mas b on a.tran_no=b.tran_no
+		and a.tran_date=b.tran_date inner join item_mas c on
+		a.item_cde=c.item_cde where a.tran_Date &gt;= to_date(#{startDate},
+		'yyyy-mm-dd') and a.tran_Date &lt;= to_date(#{endDate},'yyyy-mm-dd')
+		<include refid="queryIn" />
+		) x order by tran_no, seq
+	</select>
+	
+	<select id="getBranchByUserID" parameterType="String" resultType="String">
+		select bub.br_cde from bi_user_br bub where bub.user_id = #{userID}
+	</select>
+</mapper> 

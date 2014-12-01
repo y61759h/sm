@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bms.mapper.SysUserMapper">
+
+	<sql id="userColumns">
+		sysuser.USER_ID userID,
+		sysuser.GROUP_ID groupID,
+		sysuser.NAME name,
+		sysuser.PASSWORD password,
+		sysuser.UPD_USER updUser,
+		sysuser.UPD_DATE updDate,
+		sysuser.UPD_PROG updProg,
+		sysuser.STATUS status,
+		sysuser.CHG_UPD_DT chgUpdDT,
+		sysuser.BRANCH_USER branchUser,
+		sysuser.BUYER_CDE buyerCde,
+		sysuser.CHAIN_CDE chainCde
+	</sql>
+
+	<select id="login" parameterType="SysUser" resultType="SysUser">
+		select <include refid="userColumns"/>
+		from BI_USER sysuser
+		where sysuser.USER_ID = #{userID}
+		and sysuser.password = #{password}
+	</select>
+	
+	<select id="findCountForUserByuserID" parameterType="String" resultType="Long">
+		select count(*) from BI_USER sysuser where sysuser.USER_ID = #{userID}
+	</select>
+	
+</mapper> 

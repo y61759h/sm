@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+   
+    <!-- 别名的配置 -->
+    <typeAliases>
+		<typeAlias alias="Test" type="com.bms.pojo.Test"/>
+		<typeAlias alias="SysUser" type="com.bms.pojo.SysUser"/>
+		<typeAlias alias="SysMenu" type="com.bms.pojo.SysMenu"/>
+		<typeAlias alias="SysRole" type="com.bms.pojo.SysRole"/>
+		<typeAlias alias="SysAction" type="com.bms.pojo.SysAction"/>
+		<typeAlias alias="SysRoleMenu" type="com.bms.pojo.SysRoleMenu"/>
+		<typeAlias alias="SysRoleAction" type="com.bms.pojo.SysRoleAction"/>
+		
+		<typeAlias alias="Report" type="com.bms.vo.Report"/>
+	</typeAliases>
+	
+</configuration>

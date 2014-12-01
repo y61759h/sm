@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bms.mapper.SysActionMapper">
+
+	<sql id="columns">
+		sa.ACTION_ID actionID,
+		sa.MENU_ID menuID,
+		sa.ACTION action,
+		sa.XTYPE xtype,
+		sa.CREATE_USER createUser,
+		sa.CREATE_DATE createDate,
+		sa.MODIFY_USER modifyUser,
+		sa.MODIFY_DATE modifyDate
+	</sql>
+	
+	<select id="findActionByRoleID" parameterType="String" resultType="SysAction">
+		select <include refid="columns"/> from SYS_ACTION sa, SYS_ROLE_ACTION sra
+		where sra.ROLE_ID = #{roleID} and sra.ACTION_ID = sa.ACTION_ID
+	</select>
+	
+</mapper> 
